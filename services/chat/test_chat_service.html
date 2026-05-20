@@ -1,0 +1,2344 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chat Service Test Client</title>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@joeattardi/emoji-button@4.6.4/dist/index.min.js"></script>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #f5f5f5;
+      }
+      .container {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+      }
+      .panel {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      .status {
+        padding: 10px;
+        border-radius: 4px;
+        margin: 10px 0;
+      }
+      .status.connected {
+        background-color: #d4edda;
+        color: #155724;
+      }
+      .status.disconnected {
+        background-color: #f8d7da;
+        color: #721c24;
+      }
+      .status.error {
+        background-color: #fff3cd;
+        color: #856404;
+      }
+      .log {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        padding: 10px;
+        height: 300px;
+        overflow-y: auto;
+        font-family: monospace;
+        font-size: 12px;
+      }
+      input,
+      button,
+      select {
+        padding: 8px 12px;
+        margin: 5px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+      }
+      button {
+        background: #007bff;
+        color: white;
+        cursor: pointer;
+      }
+      button:hover {
+        background: #0056b3;
+      }
+      button:disabled {
+        background: #6c757d;
+        cursor: not-allowed;
+      }
+      .message {
+        margin: 5px 0;
+        padding: 8px;
+        border-radius: 4px;
+        background: #e9ecef;
+      }
+      .message.sent {
+        background: #d1ecf1;
+      }
+      .message.received {
+        background: #d4edda;
+      }
+      .message.system {
+        background: #fff3cd;
+      }
+      .emoji-btn {
+        background: #fff;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 20px;
+        margin-left: 2px;
+      }
+      .moderation-panel {
+        margin-top: 20px;
+        padding: 10px;
+        background: #f7f7fa;
+        border-radius: 6px;
+        border: 1px solid #eee;
+      }
+      .moderation-panel h3 {
+        margin-top: 0;
+      }
+      .moderation-panel label {
+        font-weight: bold;
+      }
+      .moderation-panel input,
+      .moderation-panel select {
+        margin-bottom: 8px;
+      }
+      .moderation-panel button {
+        margin-bottom: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>🔌 Chat Service Test Client</h1>
+    <p>
+      Test WebSocket connections, API endpoints, and moderation for your betting
+      chat service.
+    </p>
+
+    <div class="container">
+      <!-- Connection Panel -->
+      <div class="panel">
+        <h2>🔗 Connection Status</h2>
+        <div id="connectionStatus" class="status disconnected">
+          Disconnected
+        </div>
+        <div>
+          <label>Server URL:</label>
+          <input
+            type="text"
+            id="serverUrl"
+            value="http://localhost:8960"
+            style="width: 200px"
+          />
+          <button onclick="connect()">Connect</button>
+          <button onclick="disconnect()">Disconnect</button>
+        </div>
+        <div>
+          <label>JWT Token:</label>
+          <input
+            type="text"
+            id="jwtToken"
+            placeholder="Enter JWT token for authenticated testing"
+            style="width: 300px"
+          />
+        </div>
+        <h3>📊 Connection Info</h3>
+        <div id="connectionInfo">
+          <p><strong>Socket ID:</strong> <span id="socketId">-</span></p>
+          <p><strong>Connected:</strong> <span id="connectedTime">-</span></p>
+          <p>
+            <strong>Messages Sent:</strong> <span id="messagesSent">0</span>
+          </p>
+          <p>
+            <strong>Messages Received:</strong>
+            <span id="messagesReceived">0</span>
+          </p>
+        </div>
+      </div>
+
+      <!-- API Testing Panel -->
+      <div class="panel">
+        <h2>🌐 API Testing</h2>
+        <div>
+          <label>Club ID:</label>
+          <input
+            type="text"
+            id="clubId"
+            placeholder="Enter club name_based_id for testing"
+            value="test-pvt1-group"
+          />
+          <button onclick="testHealthCheck()">Health Check</button>
+        </div>
+        <div>
+          <button onclick="testClubAccess()">Test Club Access</button>
+          <button onclick="testGetUsers()">Get Club Users</button>
+          <button onclick="testGetMessages()">Get Messages</button>
+        </div>
+        <div>
+          <label>Message:</label>
+          <input
+            type="text"
+            id="messageText"
+            placeholder="Enter message to send"
+            value="Hello from test client!"
+          />
+          <button id="emojiBtn" class="emoji-btn">😀</button>
+          <button onclick="sendTestMessage()">Send Message</button>
+        </div>
+        <div>
+          <label>HTML Message:</label>
+          <textarea
+            id="htmlMessageText"
+            placeholder="Enter HTML message"
+            rows="3"
+            style="width: 100%; margin: 5px 0"
+          >
+<p><b>Bold text</b> and <i>italic text</i></p><ul><li>List item 1</li><li>List item 2</li></ul></textarea
+          >
+          <button onclick="sendHtmlMessage()">Send HTML Message</button>
+        </div>
+        <div>
+          <label>Image URL:</label>
+          <input
+            type="text"
+            id="imageUrl"
+            placeholder="Paste image URL to send as message"
+            style="width: 250px"
+          />
+          <button onclick="sendImageUrl()">Send Image URL</button>
+        </div>
+        <div>
+          <label>Upload Image:</label>
+          <input type="file" id="imageFile" accept="image/*" />
+          <button onclick="uploadImage()">Upload & Send</button>
+        </div>
+        <h3>📋 API Responses</h3>
+        <div id="apiResponses" class="log"></div>
+      </div>
+
+      <!-- Chat Testing Panel -->
+      <div class="panel">
+        <h2>💬 Chat Testing</h2>
+        <div>
+          <label>Room:</label>
+          <input
+            type="text"
+            id="roomName"
+            placeholder="Enter room name"
+            value="test-room"
+          />
+          <button onclick="joinRoom()">Join Room</button>
+          <button onclick="leaveRoom()">Leave Room</button>
+        </div>
+        <div>
+          <label>Chat Message:</label>
+          <input
+            type="text"
+            id="chatMessage"
+            placeholder="Type your message"
+            value="Hello everyone!"
+          />
+          <button id="emojiBtn2" class="emoji-btn">😀</button>
+          <button onclick="sendChatMessage()">Send to Room</button>
+        </div>
+        <div>
+          <label>Image URL:</label>
+          <input
+            type="text"
+            id="chatImageUrl"
+            placeholder="Paste image URL to send as message"
+            style="width: 250px"
+          />
+          <button onclick="sendChatImageUrl()">Send Image URL</button>
+        </div>
+        <div>
+          <label>Upload Image:</label>
+          <input type="file" id="chatImageFile" accept="image/*" />
+          <button onclick="uploadChatImage()">Upload & Send</button>
+        </div>
+        <div>
+          <button onclick="emitCustomEvent()">Emit Custom Event</button>
+          <button onclick="requestUserList()">Request User List</button>
+        </div>
+        <h3>💬 Chat Messages</h3>
+        <div id="chatMessages" class="log"></div>
+      </div>
+
+      <!-- Thread Panel -->
+      <div class="panel">
+        <h2>🧵 Thread Management</h2>
+        <div>
+          <label>Club ID:</label>
+          <input
+            type="text"
+            id="threadClubId"
+            placeholder="Club ID"
+            value="test-pvt1-group"
+            style="width: 150px"
+          />
+        </div>
+        <div>
+          <label>Parent Message ID:</label>
+          <input
+            type="text"
+            id="parentMessageId"
+            placeholder="Message ID to create thread from"
+            style="width: 200px"
+          />
+        </div>
+        <div>
+          <label>Thread Title:</label>
+          <input
+            type="text"
+            id="threadTitle"
+            placeholder="Thread title"
+            value="Discussion about this topic"
+            style="width: 250px"
+          />
+        </div>
+        <div>
+          <label>Initial Message:</label>
+          <input
+            type="text"
+            id="initialMessage"
+            placeholder="First message in thread"
+            value="Let's discuss this further!"
+            style="width: 300px"
+          />
+        </div>
+        <div>
+          <button onclick="createThread()">Create Thread</button>
+          <button onclick="getThreads()">Get Threads</button>
+        </div>
+
+        <h3>Thread Messages</h3>
+        <div>
+          <label>Thread ID:</label>
+          <input
+            type="text"
+            id="threadId"
+            placeholder="Thread ID"
+            style="width: 200px"
+          />
+        </div>
+        <div>
+          <label>Thread Message:</label>
+          <input
+            type="text"
+            id="threadMessage"
+            placeholder="Message for thread"
+            value="This is a thread message"
+            style="width: 300px"
+          />
+        </div>
+        <div>
+          <button onclick="sendThreadMessage()">Send Thread Message</button>
+          <button onclick="getThreadMessages()">Get Thread Messages</button>
+        </div>
+
+        <h3>Thread Replies</h3>
+        <div>
+          <label>Thread ID:</label>
+          <input
+            type="text"
+            id="replyThreadId"
+            placeholder="Thread ID"
+            style="width: 150px"
+          />
+        </div>
+        <div>
+          <label>Club ID:</label>
+          <input
+            type="text"
+            id="replyClubId"
+            placeholder="Club ID"
+            style="width: 150px"
+          />
+        </div>
+        <div>
+          <label>Reply to Message ID:</label>
+          <input
+            type="text"
+            id="replyToMessageId"
+            placeholder="Reply to Message ID"
+            style="width: 200px"
+          />
+        </div>
+        <div>
+          <label>Reply Content:</label>
+          <input
+            type="text"
+            id="replyContent"
+            placeholder="Reply content"
+            value="This is a reply to the thread message"
+            style="width: 300px"
+          />
+        </div>
+        <div>
+          <button onclick="replyToThreadMessage()">Reply to Message</button>
+        </div>
+
+        <h3>DM Requests</h3>
+        <div>
+          <label>Receiver ID:</label>
+          <input
+            type="text"
+            id="dmReceiverId"
+            placeholder="Receiver User ID"
+            style="width: 200px"
+          />
+        </div>
+        <div>
+          <label>Club ID:</label>
+          <input
+            type="text"
+            id="dmClubId"
+            placeholder="Club ID"
+            style="width: 150px"
+          />
+        </div>
+        <div>
+          <label>Request Message:</label>
+          <input
+            type="text"
+            id="dmRequestMessage"
+            placeholder="Optional message"
+            value="Hi, can we chat?"
+            style="width: 300px"
+          />
+        </div>
+        <div>
+          <button onclick="createDMRequest()">Send DM Request</button>
+          <button onclick="getDMRequests()">Get My Requests</button>
+        </div>
+
+        <h3>DM Request Response</h3>
+        <div>
+          <label>Request ID:</label>
+          <input
+            type="text"
+            id="dmRequestId"
+            placeholder="Request ID"
+            style="width: 200px"
+          />
+        </div>
+        <div>
+          <label>Action:</label>
+          <select id="dmRequestAction" style="width: 100px">
+            <option value="accept">Accept</option>
+            <option value="reject">Reject</option>
+            <option value="block">Block</option>
+          </select>
+        </div>
+        <div>
+          <button onclick="respondToDMRequest()">Respond to Request</button>
+        </div>
+
+        <h3>DM Messages</h3>
+        <div>
+          <label>Send to User ID:</label>
+          <input
+            type="text"
+            id="dmMessageUserId"
+            placeholder="User ID"
+            style="width: 200px"
+          />
+        </div>
+        <div>
+          <label>Club ID:</label>
+          <input
+            type="text"
+            id="dmMessageClubId"
+            placeholder="Club ID"
+            style="width: 150px"
+          />
+        </div>
+        <div>
+          <label>Message:</label>
+          <input
+            type="text"
+            id="dmMessageContent"
+            placeholder="DM message"
+            value="Hello! This is a direct message"
+            style="width: 300px"
+          />
+        </div>
+        <div>
+          <label>HTML DM Message:</label>
+          <textarea
+            id="dmHtmlMessageContent"
+            placeholder="HTML DM message"
+            rows="2"
+            style="width: 100%; margin: 5px 0"
+          >
+<p><b>Important DM:</b> <i>Please check this</i></p><ul><li>Point 1</li><li>Point 2</li></ul></textarea
+          >
+        </div>
+        <div>
+          <button onclick="sendDMMessage()">Send DM</button>
+          <button onclick="sendHtmlDMMessage()">Send HTML DM</button>
+          <button onclick="getDMMessages()">Get DM Messages</button>
+          <button onclick="getDMConversations()">Get Conversations</button>
+        </div>
+
+        <h3>DM Pin/Unpin Messages</h3>
+        <div>
+          <label>DM Message ID to Pin:</label>
+          <input
+            type="text"
+            id="dmPinMessageId"
+            placeholder="DM Message ID"
+            style="width: 200px"
+          />
+        </div>
+        <div>
+          <label>Pin Reason:</label>
+          <input
+            type="text"
+            id="dmPinReason"
+            placeholder="Reason for pinning (optional)"
+            style="width: 200px"
+          />
+        </div>
+        <div>
+          <button onclick="pinDMMessage()">Pin DM Message</button>
+          <button onclick="unpinDMMessage()">Unpin DM Message</button>
+          <button onclick="getDMPinnedMessages()">
+            Get Pinned DM Messages
+          </button>
+        </div>
+
+        <h3>Member Clubs Latest Messages</h3>
+        <div>
+          <label>Page:</label>
+          <input
+            type="number"
+            id="memberClubsPage"
+            placeholder="1"
+            value="1"
+            min="1"
+            style="width: 80px"
+          />
+        </div>
+        <div>
+          <label>Page Size:</label>
+          <input
+            type="number"
+            id="memberClubsPageSize"
+            placeholder="20"
+            value="20"
+            min="1"
+            max="100"
+            style="width: 80px"
+          />
+        </div>
+        <div>
+          <label>Sort By:</label>
+          <select id="memberClubsSortBy" style="width: 150px">
+            <option value="latest_message">Latest Message</option>
+            <option value="club_name">Club Name</option>
+            <option value="join_date">Join Date</option>
+          </select>
+        </div>
+        <div>
+          <button onclick="getMemberClubsLatestMessages()">
+            Get My Clubs Latest Messages
+          </button>
+        </div>
+
+        <h3>Club Detail Page</h3>
+        <div>
+          <label>Club ID (name_based_id):</label>
+          <input
+            type="text"
+            id="clubDetailId"
+            placeholder="e.g., file-club-name"
+            style="width: 200px"
+          />
+        </div>
+        <div>
+          <button onclick="getClubDetails()">Get Club Details</button>
+        </div>
+
+        <h3>Block/Unblock Users</h3>
+        <div>
+          <label>User ID to Block:</label>
+          <input
+            type="text"
+            id="blockUserId"
+            placeholder="User ID"
+            style="width: 200px"
+          />
+          <label>Club ID:</label>
+          <input
+            type="text"
+            id="blockClubId"
+            placeholder="Club ID"
+            style="width: 150px"
+          />
+          <label>Reason (optional):</label>
+          <input
+            type="text"
+            id="blockReason"
+            placeholder="Reason for blocking"
+            style="width: 200px"
+          />
+        </div>
+        <div>
+          <button onclick="blockUser()">Block User</button>
+          <button onclick="unblockUser()">Unblock User</button>
+          <button onclick="getBlockedUsers()">Get Blocked Users</button>
+        </div>
+
+        <h3>Block/Unblock Users</h3>
+        <div>
+          <label>User ID to Block:</label>
+          <input
+            type="text"
+            id="blockUserId"
+            placeholder="User ID"
+            style="width: 200px"
+          />
+        </div>
+        <div>
+          <label>Club ID:</label>
+          <input
+            type="text"
+            id="blockClubId"
+            placeholder="Club ID"
+            style="width: 150px"
+          />
+        </div>
+        <div>
+          <label>Reason:</label>
+          <input
+            type="text"
+            id="blockReason"
+            placeholder="Block reason"
+            value="Inappropriate behavior"
+            style="width: 200px"
+          />
+        </div>
+        <div>
+          <button onclick="blockUser()">Block User</button>
+          <button onclick="unblockUser()">Unblock User</button>
+          <button onclick="getBlockedUsers()">Get Blocked Users</button>
+        </div>
+
+        <h3>Get Message Replies</h3>
+        <div>
+          <label>Thread ID:</label>
+          <input
+            type="text"
+            id="getRepliesThreadId"
+            placeholder="Thread ID"
+            style="width: 150px"
+          />
+        </div>
+        <div>
+          <label>Club ID:</label>
+          <input
+            type="text"
+            id="getRepliesClubId"
+            placeholder="Club ID"
+            style="width: 150px"
+          />
+        </div>
+        <div>
+          <label>Message ID:</label>
+          <input
+            type="text"
+            id="getRepliesMessageId"
+            placeholder="Message ID"
+            style="width: 200px"
+          />
+        </div>
+        <div>
+          <button onclick="getThreadMessageReplies()">Get Replies</button>
+        </div>
+
+        <h3>🧵 Thread Events</h3>
+        <div id="threadEvents" class="log"></div>
+      </div>
+
+      <!-- Moderation Panel -->
+      <div class="panel moderation-panel">
+        <h2>🛡️ Moderation & Message Actions</h2>
+        <h3>Mute/Unmute User</h3>
+        <label>Club ID:</label
+        ><input
+          type="text"
+          id="modClubId"
+          placeholder="Club ID"
+          style="width: 120px"
+        />
+        <label>User ID:</label
+        ><input
+          type="text"
+          id="modUserId"
+          placeholder="User ID"
+          style="width: 120px"
+        />
+        <label>Reason:</label
+        ><input
+          type="text"
+          id="modReason"
+          placeholder="Reason (optional)"
+          style="width: 120px"
+        />
+        <label>Duration (hrs):</label
+        ><input
+          type="number"
+          id="modDuration"
+          placeholder="Duration"
+          style="width: 80px"
+          min="1"
+        />
+        <button onclick="muteUser()">Mute</button>
+        <button onclick="unmuteUser()">Unmute</button>
+        <h3>Pin/Unpin Message (Moderator/Captain)</h3>
+        <label>Message ID:</label
+        ><input
+          type="text"
+          id="pinMessageId"
+          placeholder="Message ID"
+          style="width: 180px"
+        />
+        <label>Reason:</label
+        ><input
+          type="text"
+          id="pinReason"
+          placeholder="Reason (optional)"
+          style="width: 120px"
+        />
+        <button onclick="pinMessage()">Pin</button>
+        <button onclick="unpinMessage()">Unpin</button>
+
+        <h3>Pin/Unpin Message (Member)</h3>
+        <label>Message ID:</label
+        ><input
+          type="text"
+          id="memberPinMessageId"
+          placeholder="Message ID"
+          style="width: 180px"
+        />
+        <label>Reason:</label
+        ><input
+          type="text"
+          id="memberPinReason"
+          placeholder="Reason (optional)"
+          style="width: 120px"
+        />
+        <button onclick="memberPinMessage()">Member Pin</button>
+        <button onclick="memberUnpinMessage()">Member Unpin</button>
+        <h3>Mark Read/Unread & Unread Count</h3>
+        <label>Club ID:</label
+        ><input
+          type="text"
+          id="readClubId"
+          placeholder="Club ID"
+          style="width: 120px"
+        />
+        <label>Message ID:</label
+        ><input
+          type="text"
+          id="readMessageId"
+          placeholder="Message ID"
+          style="width: 180px"
+        />
+        <button onclick="markRead()">Mark Read</button>
+        <button onclick="fetchUnreadCount()">Fetch Unread Count</button>
+        <div id="moderationResponses" class="log"></div>
+      </div>
+
+      <!-- Event Log Panel -->
+      <div class="panel">
+        <h2>📝 Event Log</h2>
+        <button onclick="clearLog()">Clear Log</button>
+        <button onclick="exportLog()">Export Log</button>
+        <div id="eventLog" class="log"></div>
+      </div>
+    </div>
+
+    <script>
+      let socket = null;
+      let messageCount = { sent: 0, received: 0 };
+      let connectedTime = null;
+
+      function log(message, type = "info") {
+        const timestamp = new Date().toLocaleTimeString();
+        const logDiv = document.getElementById("eventLog");
+        const logEntry = document.createElement("div");
+        logEntry.className = `message ${type}`;
+        logEntry.innerHTML = `[${timestamp}] ${message}`;
+        logDiv.appendChild(logEntry);
+        logDiv.scrollTop = logDiv.scrollHeight;
+      }
+
+      function updateStatus(status, message) {
+        const statusDiv = document.getElementById("connectionStatus");
+        statusDiv.className = `status ${status}`;
+        statusDiv.textContent = message;
+      }
+
+      function updateConnectionInfo() {
+        document.getElementById("socketId").textContent = socket
+          ? socket.id
+          : "-";
+        document.getElementById("connectedTime").textContent =
+          connectedTime || "-";
+        document.getElementById("messagesSent").textContent = messageCount.sent;
+        document.getElementById("messagesReceived").textContent =
+          messageCount.received;
+      }
+
+      function connect() {
+        const serverUrl = document.getElementById("serverUrl").value;
+        const jwtToken = document.getElementById("jwtToken").value;
+
+        try {
+          log(`Connecting to ${serverUrl}...`, "system");
+
+          const options = {
+            transports: ["websocket", "polling"],
+            autoConnect: false,
+          };
+
+          if (jwtToken) {
+            options.auth = { token: jwtToken };
+            log("Using JWT authentication", "system");
+          }
+
+          socket = io(serverUrl, options);
+
+          socket.on("connect", () => {
+            connectedTime = new Date().toLocaleTimeString();
+            updateStatus("connected", `Connected! Socket ID: ${socket.id}`);
+            log(`Connected successfully! Socket ID: ${socket.id}`, "system");
+            updateConnectionInfo();
+          });
+
+          socket.on("disconnect", (reason) => {
+            updateStatus("disconnected", `Disconnected: ${reason}`);
+            log(`Disconnected: ${reason}`, "error");
+            updateConnectionInfo();
+          });
+
+          socket.on("connect_error", (error) => {
+            updateStatus("error", `Connection Error: ${error.message}`);
+            log(`Connection error: ${error.message}`, "error");
+          });
+
+          // Listen for all events
+          socket.onAny((eventName, ...args) => {
+            messageCount.received++;
+            log(`Received: ${eventName} - ${JSON.stringify(args)}`, "received");
+            updateConnectionInfo();
+          });
+
+          // Specific listeners for important events
+          socket.on("club_new_message", (data) => {
+            log(
+              `💬 CLUB NEW MESSAGE: ${
+                data.message?.content?.text || JSON.stringify(data)
+              }`,
+              "received",
+            );
+            messageCount.received++;
+            updateConnectionInfo();
+          });
+
+          socket.on("message_blocked", (data) => {
+            log(`🚫 MESSAGE BLOCKED: ${data.reason}`, "error");
+            messageCount.received++;
+            updateConnectionInfo();
+          });
+
+          socket.on("club_message_edited", (data) => {
+            log(
+              `✏️ CLUB MESSAGE EDITED: ${
+                data.message?.content?.text || JSON.stringify(data)
+              }`,
+              "received",
+            );
+            messageCount.received++;
+            updateConnectionInfo();
+          });
+
+          socket.on("club_message_deleted", (data) => {
+            log(
+              `🗑️ CLUB MESSAGE DELETED: Message ID ${data.message?.message_id} deleted by ${data.message?.deleted_by_username}`,
+              "received",
+            );
+            messageCount.received++;
+            updateConnectionInfo();
+          });
+
+          socket.on("club_message_pinned", (data) => {
+            log(
+              `📌 CLUB MESSAGE PINNED: Message ID ${data.message?.message_id} pinned by ${data.message?.pinned_by_username}`,
+              "received",
+            );
+            messageCount.received++;
+            updateConnectionInfo();
+          });
+
+          socket.on("club_message_unpinned", (data) => {
+            log(
+              `📌 CLUB MESSAGE UNPINNED: Message ID ${data.message?.message_id} unpinned by ${data.message?.unpinned_by_username}`,
+              "received",
+            );
+            messageCount.received++;
+            updateConnectionInfo();
+          });
+
+          socket.on("club_thread_created", (data) => {
+            log(
+              `🧵 CLUB THREAD CREATED: Thread "${data.thread?.title}" created by ${data.thread?.created_by_username}`,
+              "received",
+            );
+            messageCount.received++;
+            updateConnectionInfo();
+          });
+
+          socket.on("club_thread_reply", (data) => {
+            log(
+              `💬 CLUB THREAD REPLY: Reply to message ${data.parent_message_id} by ${data.message?.sender_username}`,
+              "received",
+            );
+            messageCount.received++;
+            updateConnectionInfo();
+          });
+
+          socket.on("dm_message_sent", (data) => {
+            log(
+              `💌 DM MESSAGE SENT: From ${data.dm_message?.sender_full_name} (${data.dm_message?.sender_username}) to ${data.dm_message?.receiver_id} in club ${data.club_id}`,
+              "received",
+            );
+            messageCount.received++;
+            updateConnectionInfo();
+          });
+
+          socket.on("dm_message_edited", (data) => {
+            log(
+              `✏️ DM MESSAGE EDITED: From ${data.dm_message?.sender_full_name} (${data.dm_message?.sender_username}) to ${data.dm_message?.receiver_id} in club ${data.club_id}`,
+              "received",
+            );
+            messageCount.received++;
+            updateConnectionInfo();
+          });
+
+          socket.on("dm_message_deleted", (data) => {
+            log(
+              `🗑️ DM MESSAGE DELETED: Message ID ${data.dm_message?.dm_message_id} deleted by ${data.dm_message?.deleted_by_username} in club ${data.club_id}`,
+              "received",
+            );
+            messageCount.received++;
+            updateConnectionInfo();
+          });
+
+          socket.on("dm_thread_message_sent", (data) => {
+            log(
+              `💬 DM THREAD MESSAGE SENT: From ${data.dm_thread_message?.sender_full_name} (${data.dm_thread_message?.sender_username}) to ${data.dm_thread_message?.receiver_id} in club ${data.club_id} (Reply to: ${data.dm_thread_message?.parent_dm_message_id})`,
+              "received",
+            );
+            messageCount.received++;
+            updateConnectionInfo();
+          });
+
+          socket.on("user_muted", (data) => {
+            log(
+              `🔇 USER MUTED: User ${data.user_muted?.user_id} muted by ${
+                data.user_muted?.muted_by_username
+              } (${data.user_muted?.muted_by_full_name}) in club ${
+                data.club_id
+              }${
+                data.user_muted?.reason
+                  ? ` - Reason: ${data.user_muted.reason}`
+                  : ""
+              }${
+                data.user_muted?.duration_hours
+                  ? ` - Duration: ${data.user_muted.duration_hours}h`
+                  : " - Permanent"
+              }`,
+              "received",
+            );
+            messageCount.received++;
+            updateConnectionInfo();
+          });
+
+          socket.on("user_unmuted", (data) => {
+            log(
+              `🔊 USER UNMUTED: User ${data.user_unmuted?.user_id} unmuted by ${data.user_unmuted?.unmuted_by_username} (${data.user_unmuted?.unmuted_by_full_name}) in club ${data.club_id}`,
+              "received",
+            );
+            messageCount.received++;
+            updateConnectionInfo();
+          });
+
+          socket.on("error", (data) => {
+            log(`❌ ERROR: ${data.message}`, "error");
+            messageCount.received++;
+            updateConnectionInfo();
+          });
+
+          socket.on("connected", (data) => {
+            log(
+              `✅ Connected as: ${data.username} (${data.user_id})`,
+              "system",
+            );
+            messageCount.received++;
+            updateConnectionInfo();
+          });
+
+          socket.on("access_denied", (data) => {
+            log(`🚫 ACCESS DENIED: ${data.reason}`, "error");
+            messageCount.received++;
+            updateConnectionInfo();
+          });
+
+          // Thread event listeners
+          socket.on("thread_created", (data) => {
+            logThreadEvent(
+              `🧵 THREAD CREATED: ${data.thread.title} (ID: ${data.thread_id})`,
+              "received",
+            );
+            messageCount.received++;
+            updateConnectionInfo();
+          });
+
+          socket.on("thread_created_success", (data) => {
+            logThreadEvent(
+              `✅ Thread created successfully: ${data.thread.title}`,
+              "success",
+            );
+            // Auto-fill thread ID for easy testing
+            document.getElementById("threadId").value = data.thread_id;
+          });
+
+          socket.on("thread_message", (data) => {
+            logThreadEvent(
+              `💬 THREAD MESSAGE: ${data.thread_message.content.text}`,
+              "received",
+            );
+            messageCount.received++;
+            updateConnectionInfo();
+          });
+
+          socket.on("thread_message_sent", (data) => {
+            logThreadEvent(`✅ Thread message sent successfully`, "success");
+          });
+
+          // Thread reply event listeners
+          socket.on("thread_reply", (data) => {
+            logThreadEvent(
+              `💬 THREAD REPLY: ${
+                data.thread_message.content.text
+              } (Reply to: ${data.reply_to_message?.content?.text?.substring(
+                0,
+                30,
+              )}...)`,
+              "received",
+            );
+            messageCount.received++;
+            updateConnectionInfo();
+          });
+
+          socket.on("thread_reply_success", (data) => {
+            logThreadEvent(
+              `✅ Thread reply sent: ${data.thread_message_id}`,
+              "success",
+            );
+          });
+
+          // DM Socket Events
+          socket.on("dm_message", (data) => {
+            logDMEvent(
+              `DM Message received: ${JSON.stringify(data)}`,
+              "received",
+            );
+          });
+
+          socket.on("dm_message_sent", (data) => {
+            logDMEvent(`DM Message sent: ${JSON.stringify(data)}`, "sent");
+          });
+
+          socket.on("dm_request_created", (data) => {
+            logDMEvent(`DM Request created: ${JSON.stringify(data)}`, "sent");
+          });
+
+          socket.on("dm_request_received", (data) => {
+            logDMEvent(
+              `DM Request received: ${JSON.stringify(data)}`,
+              "received",
+            );
+          });
+
+          socket.on("dm_request_responded", (data) => {
+            logDMEvent(`DM Request responded: ${JSON.stringify(data)}`, "sent");
+          });
+
+          socket.on("dm_request_response", (data) => {
+            logDMEvent(
+              `DM Request response: ${JSON.stringify(data)}`,
+              "received",
+            );
+          });
+
+          socket.connect();
+        } catch (error) {
+          log(`Error connecting: ${error.message}`, "error");
+          updateStatus("error", `Error: ${error.message}`);
+        }
+      }
+
+      function disconnect() {
+        if (socket) {
+          socket.disconnect();
+          socket = null;
+          updateStatus("disconnected", "Disconnected");
+          log("Manually disconnected", "system");
+          updateConnectionInfo();
+        }
+      }
+
+      function joinRoom() {
+        if (!socket || !socket.connected) {
+          log("Not connected to server!", "error");
+          return;
+        }
+
+        const clubId = document.getElementById("clubId").value;
+        if (!clubId) {
+          log("Please enter a Club ID first!", "error");
+          return;
+        }
+
+        socket.emit("join_club_room", { club_id: clubId });
+        log(`Joining club room: ${clubId}`, "sent");
+        messageCount.sent++;
+        updateConnectionInfo();
+      }
+
+      function leaveRoom() {
+        if (!socket || !socket.connected) {
+          log("Not connected to server!", "error");
+          return;
+        }
+
+        const clubId = document.getElementById("clubId").value;
+        if (!clubId) {
+          log("Please enter a Club ID first!", "error");
+          return;
+        }
+
+        socket.emit("leave_club_room", { club_id: clubId });
+        log(`Leaving club room: ${clubId}`, "sent");
+        messageCount.sent++;
+        updateConnectionInfo();
+      }
+
+      function sendChatMessage() {
+        if (!socket || !socket.connected) {
+          log("Not connected to server!", "error");
+          return;
+        }
+
+        const message = document.getElementById("chatMessage").value;
+        const clubId = document.getElementById("clubId").value;
+
+        if (!clubId) {
+          log("Please enter a Club ID first!", "error");
+          return;
+        }
+
+        socket.emit("send_message", {
+          club_id: clubId,
+          content: message,
+          message_type: "text",
+        });
+
+        log(`Sending message to club ${clubId}: ${message}`, "sent");
+        messageCount.sent++;
+        updateConnectionInfo();
+      }
+
+      function emitCustomEvent() {
+        if (!socket || !socket.connected) {
+          log("Not connected to server!", "error");
+          return;
+        }
+
+        const eventData = {
+          type: "test_event",
+          data: "This is a test event",
+          timestamp: new Date().toISOString(),
+        };
+
+        socket.emit("custom_event", eventData);
+        log(`Emitting custom event: ${JSON.stringify(eventData)}`, "sent");
+        messageCount.sent++;
+        updateConnectionInfo();
+      }
+
+      function requestUserList() {
+        if (!socket || !socket.connected) {
+          log("Not connected to server!", "error");
+          return;
+        }
+
+        socket.emit("get_users");
+        log("Requesting user list", "sent");
+        messageCount.sent++;
+        updateConnectionInfo();
+      }
+
+      function sendTestMessage() {
+        if (!socket || !socket.connected) {
+          log("Not connected to server!", "error");
+          return;
+        }
+
+        const message = document.getElementById("messageText").value;
+        socket.emit("test_message", message);
+        log(`Sending test message: ${message}`, "sent");
+        messageCount.sent++;
+        updateConnectionInfo();
+      }
+
+      function sendHtmlMessage() {
+        if (!socket || !socket.connected) {
+          log("Not connected to server!", "error");
+          return;
+        }
+
+        const message = document.getElementById("htmlMessageText").value;
+        const clubId = document.getElementById("clubId").value;
+
+        if (!clubId) {
+          log("Please enter a Club ID first!", "error");
+          return;
+        }
+
+        socket.emit("send_message", {
+          club_id: clubId,
+          content: message,
+          message_type: "text",
+        });
+
+        log(`Sending HTML message to club ${clubId}: ${message}`, "sent");
+        messageCount.sent++;
+        updateConnectionInfo();
+      }
+
+      async function testHealthCheck() {
+        const serverUrl = document.getElementById("serverUrl").value;
+        try {
+          const response = await fetch(`${serverUrl}/health`);
+          const data = await response.json();
+          logApiResponse("Health Check", data);
+        } catch (error) {
+          logApiResponse("Health Check", { error: error.message });
+        }
+      }
+
+      async function testClubAccess() {
+        const serverUrl = document.getElementById("serverUrl").value;
+        const clubId = document.getElementById("clubId").value;
+        const jwtToken = document.getElementById("jwtToken").value;
+
+        try {
+          const headers = {};
+          if (jwtToken) {
+            headers["Authorization"] = `Bearer ${jwtToken}`;
+          }
+
+          const response = await fetch(
+            `${serverUrl}/api/v1/chat/clubs/${clubId}/access`,
+            {
+              headers: headers,
+            },
+          );
+          const data = await response.json();
+          logApiResponse("Club Access", data);
+        } catch (error) {
+          logApiResponse("Club Access", { error: error.message });
+        }
+      }
+
+      async function testGetUsers() {
+        const serverUrl = document.getElementById("serverUrl").value;
+        const clubId = document.getElementById("clubId").value;
+        const jwtToken = document.getElementById("jwtToken").value;
+
+        try {
+          const headers = {};
+          if (jwtToken) {
+            headers["Authorization"] = `Bearer ${jwtToken}`;
+          }
+
+          const response = await fetch(
+            `${serverUrl}/api/v1/chat/clubs/${clubId}/users`,
+            {
+              headers: headers,
+            },
+          );
+          const data = await response.json();
+          logApiResponse("Get Users", data);
+        } catch (error) {
+          logApiResponse("Get Users", { error: error.message });
+        }
+      }
+
+      async function testGetMessages() {
+        const serverUrl = document.getElementById("serverUrl").value;
+        const clubId = document.getElementById("clubId").value;
+        const jwtToken = document.getElementById("jwtToken").value;
+
+        try {
+          const headers = {};
+          if (jwtToken) {
+            headers["Authorization"] = `Bearer ${jwtToken}`;
+          }
+
+          const response = await fetch(
+            `${serverUrl}/api/v1/chat/clubs/${clubId}/messages`,
+            {
+              headers: headers,
+            },
+          );
+          const data = await response.json();
+          logApiResponse("Get Messages", data);
+        } catch (error) {
+          logApiResponse("Get Messages", { error: error.message });
+        }
+      }
+
+      function logApiResponse(endpoint, data) {
+        const responsesDiv = document.getElementById("apiResponses");
+        const responseEntry = document.createElement("div");
+
+        // Handle new response format
+        let displayData = data;
+        if (data && data.status && data.message && data.data !== undefined) {
+          displayData = {
+            status: data.status,
+            message: data.message,
+            data: data.data,
+          };
+        }
+
+        responseEntry.innerHTML = `
+                <strong>${endpoint}:</strong><br>
+                <pre>${JSON.stringify(displayData, null, 2)}</pre>
+                <hr>
+            `;
+        responsesDiv.appendChild(responseEntry);
+        responsesDiv.scrollTop = responsesDiv.scrollHeight;
+      }
+
+      // Moderation Panel Functions
+      async function muteUser() {
+        const clubId = document.getElementById("modClubId").value;
+        const userId = document.getElementById("modUserId").value;
+        const reason = document.getElementById("modReason").value;
+        const duration = document.getElementById("modDuration").value;
+        const jwtToken = document.getElementById("jwtToken").value;
+
+        if (!clubId || !userId) {
+          logModerationResponse("Mute User", {
+            error: "Club ID and User ID required",
+          });
+          return;
+        }
+
+        const body = {
+          user_id: userId,
+          reason: reason,
+          duration_hours: duration ? parseInt(duration) : undefined,
+        };
+
+        try {
+          const response = await fetch(
+            `http://localhost:8960/api/v1/chat/clubs/${clubId}/mute-user`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${jwtToken}`,
+              },
+              body: JSON.stringify(body),
+            },
+          );
+          const data = await response.json();
+          logModerationResponse("Mute User", data);
+        } catch (error) {
+          logModerationResponse("Mute User", { error: error.message });
+        }
+      }
+
+      async function unmuteUser() {
+        const clubId = document.getElementById("modClubId").value;
+        const userId = document.getElementById("modUserId").value;
+        const jwtToken = document.getElementById("jwtToken").value;
+
+        if (!clubId || !userId) {
+          logModerationResponse("Unmute User", {
+            error: "Club ID and User ID required",
+          });
+          return;
+        }
+
+        try {
+          const response = await fetch(
+            `http://localhost:8960/api/v1/chat/clubs/${clubId}/unmute-user?user_id=${encodeURIComponent(
+              userId,
+            )}`,
+            {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${jwtToken}`,
+              },
+            },
+          );
+          const data = await response.json();
+          logModerationResponse("Unmute User", data);
+        } catch (error) {
+          logModerationResponse("Unmute User", { error: error.message });
+        }
+      }
+
+      async function pinMessage() {
+        const messageId = document.getElementById("pinMessageId").value;
+        const reason = document.getElementById("pinReason").value;
+        const jwtToken = document.getElementById("jwtToken").value;
+
+        if (!messageId) {
+          logModerationResponse("Pin Message", {
+            error: "Message ID required",
+          });
+          return;
+        }
+
+        const body = { message_id: messageId, reason: reason };
+
+        try {
+          const response = await fetch(
+            `http://localhost:8960/api/v1/chat/messages/${messageId}/pin`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${jwtToken}`,
+              },
+              body: JSON.stringify(body),
+            },
+          );
+          const data = await response.json();
+          logModerationResponse("Pin Message", data);
+        } catch (error) {
+          logModerationResponse("Pin Message", { error: error.message });
+        }
+      }
+
+      async function unpinMessage() {
+        const messageId = document.getElementById("pinMessageId").value;
+        const jwtToken = document.getElementById("jwtToken").value;
+
+        if (!messageId) {
+          logModerationResponse("Unpin Message", {
+            error: "Message ID required",
+          });
+          return;
+        }
+
+        try {
+          const response = await fetch(
+            `http://localhost:8960/api/v1/chat/messages/${messageId}/pin`,
+            {
+              method: "DELETE",
+              headers: {
+                Authorization: `Bearer ${jwtToken}`,
+              },
+            },
+          );
+          const data = await response.json();
+          logModerationResponse("Unpin Message", data);
+        } catch (error) {
+          logModerationResponse("Unpin Message", { error: error.message });
+        }
+      }
+
+      async function memberPinMessage() {
+        const messageId = document.getElementById("memberPinMessageId").value;
+        const reason = document.getElementById("memberPinReason").value;
+        const jwtToken = document.getElementById("jwtToken").value;
+
+        if (!messageId) {
+          logModerationResponse("Member Pin Message", {
+            error: "Message ID required",
+          });
+          return;
+        }
+
+        const body = {
+          reason: reason || "Member pinned message",
+        };
+
+        try {
+          const response = await fetch(
+            `http://localhost:8960/api/v1/chat/messages/${messageId}/member-pin`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${jwtToken}`,
+              },
+              body: JSON.stringify(body),
+            },
+          );
+          const data = await response.json();
+          logModerationResponse("Member Pin Message", data);
+        } catch (error) {
+          logModerationResponse("Member Pin Message", { error: error.message });
+        }
+      }
+
+      async function memberUnpinMessage() {
+        const messageId = document.getElementById("memberPinMessageId").value;
+        const jwtToken = document.getElementById("jwtToken").value;
+
+        if (!messageId) {
+          logModerationResponse("Member Unpin Message", {
+            error: "Message ID required",
+          });
+          return;
+        }
+
+        try {
+          const response = await fetch(
+            `http://localhost:8960/api/v1/chat/messages/${messageId}/member-pin`,
+            {
+              method: "DELETE",
+              headers: {
+                Authorization: `Bearer ${jwtToken}`,
+              },
+            },
+          );
+          const data = await response.json();
+          logModerationResponse("Member Unpin Message", data);
+        } catch (error) {
+          logModerationResponse("Member Unpin Message", {
+            error: error.message,
+          });
+        }
+      }
+
+      async function markRead() {
+        const clubId = document.getElementById("readClubId").value;
+        const messageId = document.getElementById("readMessageId").value;
+        const jwtToken = document.getElementById("jwtToken").value;
+
+        if (!clubId || !messageId) {
+          logModerationResponse("Mark Read", {
+            error: "Club ID and Message ID required",
+          });
+          return;
+        }
+
+        const body = { message_id: messageId };
+
+        try {
+          const response = await fetch(
+            `http://localhost:8960/api/v1/chat/clubs/${clubId}/mark-read`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${jwtToken}`,
+              },
+              body: JSON.stringify(body),
+            },
+          );
+          const data = await response.json();
+          logModerationResponse("Mark Read", data);
+        } catch (error) {
+          logModerationResponse("Mark Read", { error: error.message });
+        }
+      }
+
+      async function fetchUnreadCount() {
+        const clubId = document.getElementById("readClubId").value;
+        const jwtToken = document.getElementById("jwtToken").value;
+
+        if (!clubId) {
+          logModerationResponse("Fetch Unread Count", {
+            error: "Club ID required",
+          });
+          return;
+        }
+
+        try {
+          const response = await fetch(
+            `http://localhost:8960/api/v1/chat/clubs/${clubId}/unread-count`,
+            {
+              method: "GET",
+              headers: {
+                Authorization: `Bearer ${jwtToken}`,
+              },
+            },
+          );
+          const data = await response.json();
+          logModerationResponse("Fetch Unread Count", data);
+        } catch (error) {
+          logModerationResponse("Fetch Unread Count", { error: error.message });
+        }
+      }
+
+      function logModerationResponse(action, data) {
+        const logDiv = document.getElementById("moderationResponses");
+        const entry = document.createElement("div");
+
+        // Handle new response format
+        let displayData = data;
+        if (data && data.status && data.message && data.data !== undefined) {
+          displayData = {
+            status: data.status,
+            message: data.message,
+            data: data.data,
+          };
+        }
+
+        entry.innerHTML = `<strong>${action}:</strong><br><pre>${JSON.stringify(
+          displayData,
+          null,
+          2,
+        )}</pre><hr>`;
+        logDiv.appendChild(entry);
+        logDiv.scrollTop = logDiv.scrollHeight;
+      }
+
+      function clearLog() {
+        document.getElementById("eventLog").innerHTML = "";
+        document.getElementById("apiResponses").innerHTML = "";
+        document.getElementById("chatMessages").innerHTML = "";
+      }
+
+      function exportLog() {
+        const logContent = document.getElementById("eventLog").innerText;
+        const blob = new Blob([logContent], { type: "text/plain" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `chat-test-log-${new Date()
+          .toISOString()
+          .slice(0, 19)}.txt`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+
+      // Thread Functions
+      function logThreadEvent(message, type) {
+        const threadEvents = document.getElementById("threadEvents");
+        const timestamp = new Date().toLocaleTimeString();
+        const logEntry = document.createElement("div");
+        logEntry.className = `log-entry ${type}`;
+        logEntry.innerHTML = `<span class="timestamp">[${timestamp}]</span> ${message}`;
+        threadEvents.appendChild(logEntry);
+        threadEvents.scrollTop = threadEvents.scrollHeight;
+      }
+
+      function createThread() {
+        if (!socket || !socket.connected) {
+          logThreadEvent("Not connected to server!", "error");
+          return;
+        }
+
+        const clubId = document.getElementById("threadClubId").value;
+        const parentMessageId =
+          document.getElementById("parentMessageId").value;
+        const title = document.getElementById("threadTitle").value;
+        const initialMessage = document.getElementById("initialMessage").value;
+
+        if (!clubId || !parentMessageId || !title || !initialMessage) {
+          logThreadEvent("Please fill in all thread fields!", "error");
+          return;
+        }
+
+        socket.emit("create_thread", {
+          club_id: clubId,
+          parent_message_id: parentMessageId,
+          title: title,
+          initial_message: initialMessage,
+        });
+
+        logThreadEvent(`Creating thread: ${title}`, "sent");
+        messageCount.sent++;
+        updateConnectionInfo();
+      }
+
+      function sendThreadMessage() {
+        if (!socket || !socket.connected) {
+          logThreadEvent("Not connected to server!", "error");
+          return;
+        }
+
+        const threadId = document.getElementById("threadId").value;
+        const clubId = document.getElementById("threadClubId").value;
+        const message = document.getElementById("threadMessage").value;
+
+        if (!threadId || !clubId || !message) {
+          logThreadEvent(
+            "Please fill in thread ID, club ID, and message!",
+            "error",
+          );
+          return;
+        }
+
+        socket.emit("send_thread_message", {
+          thread_id: threadId,
+          club_id: clubId,
+          content: message,
+          message_type: "text",
+        });
+
+        logThreadEvent(`Sending thread message: ${message}`, "sent");
+        messageCount.sent++;
+        updateConnectionInfo();
+      }
+
+      async function getThreads() {
+        const clubId = document.getElementById("threadClubId").value;
+        const jwtToken = document.getElementById("jwtToken").value;
+
+        if (!clubId) {
+          logThreadEvent("Please enter Club ID!", "error");
+          return;
+        }
+
+        try {
+          const response = await fetch(
+            `http://localhost:8960/api/v1/chat/clubs/${clubId}/threads`,
+            {
+              headers: {
+                Authorization: `Bearer ${jwtToken}`,
+              },
+            },
+          );
+          const data = await response.json();
+          logThreadEvent(
+            `Threads API Response: ${JSON.stringify(data, null, 2)}`,
+            "received",
+          );
+        } catch (error) {
+          logThreadEvent(`Threads API Error: ${error.message}`, "error");
+        }
+      }
+
+      async function getThreadMessages() {
+        const threadId = document.getElementById("threadId").value;
+        const clubId = document.getElementById("threadClubId").value;
+        const jwtToken = document.getElementById("jwtToken").value;
+
+        if (!threadId || !clubId) {
+          logThreadEvent("Please enter Thread ID and Club ID!", "error");
+          return;
+        }
+
+        try {
+          const response = await fetch(
+            `http://localhost:8960/api/v1/chat/threads/${threadId}/messages?club_id=${clubId}`,
+            {
+              headers: {
+                Authorization: `Bearer ${jwtToken}`,
+              },
+            },
+          );
+          const data = await response.json();
+          logThreadEvent(
+            `Thread Messages API Response: ${JSON.stringify(data, null, 2)}`,
+            "received",
+          );
+        } catch (error) {
+          logThreadEvent(
+            `Thread Messages API Error: ${error.message}`,
+            "error",
+          );
+        }
+
+        function replyToThreadMessage() {
+          if (!socket || !socket.connected) {
+            logThreadEvent("Not connected to server!", "error");
+            return;
+          }
+
+          const threadId = document.getElementById("replyThreadId").value;
+          const clubId = document.getElementById("replyClubId").value;
+          const replyToMessageId =
+            document.getElementById("replyToMessageId").value;
+          const content = document.getElementById("replyContent").value;
+
+          if (!threadId || !clubId || !replyToMessageId || !content) {
+            logThreadEvent("Please fill in all reply fields!", "error");
+            return;
+          }
+
+          socket.emit("reply_to_thread_message", {
+            thread_id: threadId,
+            club_id: clubId,
+            reply_to_thread_message_id: replyToMessageId,
+            content: content,
+            message_type: "text",
+          });
+
+          logThreadEvent(`Replying to thread message: ${content}`, "sent");
+          messageCount.sent++;
+          updateConnectionInfo();
+        }
+
+        async function getThreadMessageReplies() {
+          const threadId = document.getElementById("getRepliesThreadId").value;
+          const clubId = document.getElementById("getRepliesClubId").value;
+          const messageId = document.getElementById(
+            "getRepliesMessageId",
+          ).value;
+          const jwtToken = document.getElementById("jwtToken").value;
+
+          if (!threadId || !clubId || !messageId) {
+            logThreadEvent(
+              "Please enter Thread ID, Club ID, and Message ID!",
+              "error",
+            );
+            return;
+          }
+
+          try {
+            const response = await fetch(
+              `http://localhost:8960/api/v1/chat/threads/${threadId}/messages/${messageId}/replies?club_id=${clubId}`,
+              {
+                headers: {
+                  Authorization: `Bearer ${jwtToken}`,
+                },
+              },
+            );
+            const data = await response.json();
+            logThreadEvent(
+              `Thread Message Replies API Response: ${JSON.stringify(
+                data,
+                null,
+                2,
+              )}`,
+              "received",
+            );
+          } catch (error) {
+            logThreadEvent(
+              `Thread Message Replies API Error: ${error.message}`,
+              "error",
+            );
+          }
+        }
+
+        // DM Functions
+        function logDMEvent(message, type = "info") {
+          const timestamp = new Date().toLocaleTimeString();
+          const logEntry = document.createElement("div");
+          logEntry.className = `log-entry ${type}`;
+          logEntry.innerHTML = `<span class="timestamp">[${timestamp}]</span> <span class="message">${message}</span>`;
+          document.getElementById("threadEvents").appendChild(logEntry);
+          document.getElementById("threadEvents").scrollTop =
+            document.getElementById("threadEvents").scrollHeight;
+        }
+
+        async function createDMRequest() {
+          const receiverId = document.getElementById("dmReceiverId").value;
+          const clubId = document.getElementById("dmClubId").value;
+          const message = document.getElementById("dmRequestMessage").value;
+          const jwtToken = document.getElementById("jwtToken").value;
+
+          if (!receiverId || !clubId) {
+            logDMEvent("Please fill in receiver ID and club ID!", "error");
+            return;
+          }
+
+          try {
+            const response = await fetch(
+              "http://localhost:8960/api/v1/chat/dm/requests",
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${jwtToken}`,
+                },
+                body: JSON.stringify({
+                  receiver_id: receiverId,
+                  club_id: clubId,
+                  message: message || null,
+                }),
+              },
+            );
+            const data = await response.json();
+            logDMEvent(`Create DM Request: ${JSON.stringify(data)}`, "sent");
+          } catch (error) {
+            logDMEvent(`Create DM Request Error: ${error.message}`, "error");
+          }
+        }
+
+        async function getDMRequests() {
+          const clubId = document.getElementById("dmClubId").value;
+          const jwtToken = document.getElementById("jwtToken").value;
+
+          if (!clubId) {
+            logDMEvent("Please fill in club ID!", "error");
+            return;
+          }
+
+          try {
+            const response = await fetch(
+              `http://localhost:8960/api/v1/chat/dm/requests?club_id=${clubId}`,
+              {
+                headers: {
+                  Authorization: `Bearer ${jwtToken}`,
+                },
+              },
+            );
+            const data = await response.json();
+            logDMEvent(`Get DM Requests: ${JSON.stringify(data)}`, "received");
+          } catch (error) {
+            logDMEvent(`Get DM Requests Error: ${error.message}`, "error");
+          }
+        }
+
+        async function respondToDMRequest() {
+          const requestId = document.getElementById("dmRequestId").value;
+          const action = document.getElementById("dmRequestAction").value;
+          const jwtToken = document.getElementById("jwtToken").value;
+
+          if (!requestId) {
+            logDMEvent("Please fill in request ID!", "error");
+            return;
+          }
+
+          try {
+            const response = await fetch(
+              `http://localhost:8960/api/v1/chat/dm/requests/${requestId}/respond`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${jwtToken}`,
+                },
+                body: JSON.stringify({
+                  action: action,
+                }),
+              },
+            );
+            const data = await response.json();
+            logDMEvent(
+              `Respond to DM Request: ${JSON.stringify(data)}`,
+              "sent",
+            );
+          } catch (error) {
+            logDMEvent(
+              `Respond to DM Request Error: ${error.message}`,
+              "error",
+            );
+          }
+        }
+
+        async function sendDMMessage() {
+          const userId = document.getElementById("dmMessageUserId").value;
+          const clubId = document.getElementById("dmMessageClubId").value;
+          const content = document.getElementById("dmMessageContent").value;
+          const jwtToken = document.getElementById("jwtToken").value;
+
+          if (!userId || !clubId || !content) {
+            logDMEvent("Please fill in all fields!", "error");
+            return;
+          }
+
+          try {
+            const response = await fetch(
+              "http://localhost:8960/api/v1/chat/dm/messages",
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${jwtToken}`,
+                },
+                body: JSON.stringify({
+                  receiver_id: userId,
+                  club_id: clubId,
+                  content: content,
+                  message_type: "text",
+                }),
+              },
+            );
+            const data = await response.json();
+            logDMEvent(`Send DM Message: ${JSON.stringify(data)}`, "sent");
+          } catch (error) {
+            logDMEvent(`Send DM Message Error: ${error.message}`, "error");
+          }
+        }
+
+        async function sendHtmlDMMessage() {
+          const userId = document.getElementById("dmMessageUserId").value;
+          const clubId = document.getElementById("dmMessageClubId").value;
+          const content = document.getElementById("dmHtmlMessageContent").value;
+          const jwtToken = document.getElementById("jwtToken").value;
+
+          if (!userId || !clubId || !content) {
+            logDMEvent("Please fill in all fields!", "error");
+            return;
+          }
+
+          try {
+            const response = await fetch(
+              "http://localhost:8960/api/v1/chat/dm/messages",
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${jwtToken}`,
+                },
+                body: JSON.stringify({
+                  receiver_id: userId,
+                  club_id: clubId,
+                  content: content,
+                  message_type: "text",
+                }),
+              },
+            );
+            const data = await response.json();
+            logDMEvent(`Send HTML DM Message: ${JSON.stringify(data)}`, "sent");
+          } catch (error) {
+            logDMEvent(`Send HTML DM Message Error: ${error.message}`, "error");
+          }
+        }
+
+        async function getDMMessages() {
+          const userId = document.getElementById("dmMessageUserId").value;
+          const clubId = document.getElementById("dmMessageClubId").value;
+          const jwtToken = document.getElementById("jwtToken").value;
+
+          if (!userId || !clubId) {
+            logDMEvent("Please fill in user ID and club ID!", "error");
+            return;
+          }
+
+          try {
+            const response = await fetch(
+              `http://localhost:8960/api/v1/chat/dm/messages?user_id=${userId}&club_id=${clubId}`,
+              {
+                headers: {
+                  Authorization: `Bearer ${jwtToken}`,
+                },
+              },
+            );
+            const data = await response.json();
+            logDMEvent(`Get DM Messages: ${JSON.stringify(data)}`, "received");
+          } catch (error) {
+            logDMEvent(`Get DM Messages Error: ${error.message}`, "error");
+          }
+        }
+
+        async function getDMConversations() {
+          const clubId = document.getElementById("dmMessageClubId").value;
+          const jwtToken = document.getElementById("jwtToken").value;
+
+          if (!clubId) {
+            logDMEvent("Please fill in club ID!", "error");
+            return;
+          }
+
+          try {
+            const response = await fetch(
+              `http://localhost:8960/api/v1/chat/dm/conversations?club_id=${clubId}`,
+              {
+                headers: {
+                  Authorization: `Bearer ${jwtToken}`,
+                },
+              },
+            );
+            const data = await response.json();
+            logDMEvent(
+              `Get DM Conversations: ${JSON.stringify(data)}`,
+              "received",
+            );
+          } catch (error) {
+            logDMEvent(`Get DM Conversations Error: ${error.message}`, "error");
+          }
+        }
+
+        async function pinDMMessage() {
+          const messageId = document.getElementById("dmPinMessageId").value;
+          const reason = document.getElementById("dmPinReason").value;
+          const jwtToken = document.getElementById("jwtToken").value;
+
+          if (!messageId) {
+            logDMEvent("Please fill in DM Message ID!", "error");
+            return;
+          }
+
+          try {
+            const response = await fetch(
+              `http://localhost:8960/api/v1/chat/dm/messages/${messageId}/pin`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${jwtToken}`,
+                },
+                body: JSON.stringify({
+                  reason: reason || null,
+                }),
+              },
+            );
+            const data = await response.json();
+            logDMEvent(`Pin DM Message: ${JSON.stringify(data)}`, "sent");
+          } catch (error) {
+            logDMEvent(`Pin DM Message Error: ${error.message}`, "error");
+          }
+        }
+
+        async function unpinDMMessage() {
+          const messageId = document.getElementById("dmPinMessageId").value;
+          const jwtToken = document.getElementById("jwtToken").value;
+
+          if (!messageId) {
+            logDMEvent("Please fill in DM Message ID!", "error");
+            return;
+          }
+
+          try {
+            const response = await fetch(
+              `http://localhost:8960/api/v1/chat/dm/messages/${messageId}/pin`,
+              {
+                method: "DELETE",
+                headers: {
+                  Authorization: `Bearer ${jwtToken}`,
+                },
+              },
+            );
+            const data = await response.json();
+            logDMEvent(`Unpin DM Message: ${JSON.stringify(data)}`, "sent");
+          } catch (error) {
+            logDMEvent(`Unpin DM Message Error: ${error.message}`, "error");
+          }
+        }
+
+        async function getDMPinnedMessages() {
+          const userId = document.getElementById("dmMessageUserId").value;
+          const clubId = document.getElementById("dmMessageClubId").value;
+          const jwtToken = document.getElementById("jwtToken").value;
+
+          if (!userId || !clubId) {
+            logDMEvent("Please fill in User ID and Club ID!", "error");
+            return;
+          }
+
+          try {
+            const response = await fetch(
+              `http://localhost:8960/api/v1/chat/dm/pinned-messages?user_id=${userId}&club_id=${clubId}`,
+              {
+                headers: {
+                  Authorization: `Bearer ${jwtToken}`,
+                },
+              },
+            );
+            const data = await response.json();
+            logDMEvent(
+              `Get Pinned DM Messages: ${JSON.stringify(data)}`,
+              "received",
+            );
+          } catch (error) {
+            logDMEvent(
+              `Get Pinned DM Messages Error: ${error.message}`,
+              "error",
+            );
+          }
+        }
+
+        async function getMemberClubsLatestMessages() {
+          const page = document.getElementById("memberClubsPage").value || 1;
+          const pageSize =
+            document.getElementById("memberClubsPageSize").value || 20;
+          const sortBy =
+            document.getElementById("memberClubsSortBy").value ||
+            "latest_message";
+          const jwtToken = document.getElementById("jwtToken").value;
+
+          if (!jwtToken) {
+            log("Please enter JWT Token!", "error");
+            return;
+          }
+
+          try {
+            const response = await fetch(
+              `http://localhost:8960/api/v1/chat/member/clubs/latest-messages?page=${page}&page_size=${pageSize}&sort_by=${sortBy}`,
+              {
+                headers: {
+                  Authorization: `Bearer ${jwtToken}`,
+                },
+              },
+            );
+            const data = await response.json();
+            log(
+              `Get Member Clubs Latest Messages: ${JSON.stringify(
+                data,
+                null,
+                2,
+              )}`,
+              "received",
+            );
+          } catch (error) {
+            log(
+              `Get Member Clubs Latest Messages Error: ${error.message}`,
+              "error",
+            );
+          }
+        }
+
+        async function getClubDetails() {
+          const clubId = document.getElementById("clubDetailId").value;
+          const jwtToken = document.getElementById("jwtToken").value;
+
+          if (!jwtToken) {
+            log("Please enter JWT Token!", "error");
+            return;
+          }
+
+          if (!clubId) {
+            log("Please enter a club ID!", "error");
+            return;
+          }
+
+          try {
+            const response = await fetch(
+              `http://localhost:8960/api/v1/chat/clubs/${clubId}/details`,
+              {
+                headers: {
+                  Authorization: `Bearer ${jwtToken}`,
+                },
+              },
+            );
+
+            const data = await response.json();
+            log(`Club Details: ${JSON.stringify(data, null, 2)}`, "received");
+          } catch (error) {
+            log(`Club Details Error: ${error.message}`, "error");
+          }
+        }
+
+        async function blockUser() {
+          const userId = document.getElementById("blockUserId").value;
+          const clubId = document.getElementById("blockClubId").value;
+          const reason = document.getElementById("blockReason").value;
+          const jwtToken = document.getElementById("jwtToken").value;
+
+          if (!userId || !clubId) {
+            logDMEvent("Please fill in user ID and club ID!", "error");
+            return;
+          }
+
+          try {
+            const response = await fetch(
+              "http://localhost:8960/api/v1/chat/dm/block",
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${jwtToken}`,
+                },
+                body: JSON.stringify({
+                  user_id: userId,
+                  club_id: clubId,
+                  reason: reason || null,
+                }),
+              },
+            );
+            const data = await response.json();
+            logDMEvent(`Block User: ${JSON.stringify(data)}`, "sent");
+          } catch (error) {
+            logDMEvent(`Block User Error: ${error.message}`, "error");
+          }
+        }
+
+        async function unblockUser() {
+          const userId = document.getElementById("blockUserId").value;
+          const clubId = document.getElementById("blockClubId").value;
+          const jwtToken = document.getElementById("jwtToken").value;
+
+          if (!userId || !clubId) {
+            logDMEvent("Please fill in user ID and club ID!", "error");
+            return;
+          }
+
+          try {
+            const response = await fetch(
+              "http://localhost:8960/api/v1/chat/dm/unblock",
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${jwtToken}`,
+                },
+                body: JSON.stringify({
+                  user_id: userId,
+                  club_id: clubId,
+                }),
+              },
+            );
+            const data = await response.json();
+            logDMEvent(`Unblock User: ${JSON.stringify(data)}`, "sent");
+          } catch (error) {
+            logDMEvent(`Unblock User Error: ${error.message}`, "error");
+          }
+        }
+
+        async function getBlockedUsers() {
+          const clubId = document.getElementById("blockClubId").value;
+          const jwtToken = document.getElementById("jwtToken").value;
+
+          if (!clubId) {
+            logDMEvent("Please fill in club ID!", "error");
+            return;
+          }
+
+          try {
+            const response = await fetch(
+              `http://localhost:8960/api/v1/chat/dm/blocked-users?club_id=${clubId}`,
+              {
+                headers: {
+                  Authorization: `Bearer ${jwtToken}`,
+                },
+              },
+            );
+            const data = await response.json();
+            logDMEvent(
+              `Get Blocked Users: ${JSON.stringify(data)}`,
+              "received",
+            );
+          } catch (error) {
+            logDMEvent(`Get Blocked Users Error: ${error.message}`, "error");
+          }
+        }
+      }
+
+      // Initialize
+      updateConnectionInfo();
+      log(
+        'Chat Service Test Client loaded. Click "Connect" to start testing.',
+        "system",
+      );
+    </script>
+  </body>
+</html>

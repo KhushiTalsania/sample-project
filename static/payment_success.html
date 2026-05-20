@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Payment Successful - MVP Sports</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+      }
+
+      .container {
+        background: white;
+        border-radius: 20px;
+        padding: 40px;
+        max-width: 600px;
+        width: 100%;
+        text-align: center;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+      }
+
+      .success-icon {
+        width: 80px;
+        height: 80px;
+        background: #4caf50;
+        border-radius: 50%;
+        margin: 0 auto 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 40px;
+        color: white;
+      }
+
+      h1 {
+        color: #333;
+        font-size: 28px;
+        margin-bottom: 10px;
+      }
+
+      .subtitle {
+        color: #666;
+        font-size: 16px;
+        margin-bottom: 30px;
+      }
+
+      .details {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 20px;
+        margin: 20px 0;
+        text-align: left;
+      }
+
+      .detail-row {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 10px;
+        padding: 5px 0;
+        border-bottom: 1px solid #eee;
+      }
+
+      .detail-row:last-child {
+        border-bottom: none;
+        margin-bottom: 0;
+      }
+
+      .label {
+        font-weight: 600;
+        color: #333;
+      }
+
+      .value {
+        color: #666;
+      }
+
+      .buttons {
+        margin-top: 30px;
+      }
+
+      .btn {
+        display: inline-block;
+        padding: 12px 24px;
+        margin: 0 10px 10px 0;
+        border: none;
+        border-radius: 8px;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 14px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        min-width: 140px;
+      }
+
+      .btn-primary {
+        background: #667eea;
+        color: white;
+      }
+
+      .btn-primary:hover {
+        background: #5a6fd8;
+        transform: translateY(-2px);
+      }
+
+      .btn-secondary {
+        background: #6c757d;
+        color: white;
+      }
+
+      .btn-secondary:hover {
+        background: #5a6268;
+        transform: translateY(-2px);
+      }
+
+      .btn-success {
+        background: #28a745;
+        color: white;
+      }
+
+      .btn-success:hover {
+        background: #218838;
+        transform: translateY(-2px);
+      }
+
+      .loading {
+        display: none;
+        margin: 20px 0;
+      }
+
+      .spinner {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        border: 3px solid #f3f3f3;
+        border-top: 3px solid #667eea;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      .membership-results {
+        margin-top: 30px;
+        text-align: left;
+        display: none;
+      }
+
+      .membership-card {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 15px;
+        margin: 10px 0;
+        border-left: 4px solid #28a745;
+      }
+
+      .club-name {
+        font-weight: 600;
+        color: #333;
+        font-size: 16px;
+      }
+
+      .club-details {
+        color: #666;
+        font-size: 14px;
+        margin-top: 5px;
+      }
+
+      .status-active {
+        color: #28a745;
+        font-weight: 600;
+      }
+
+      .status-inactive {
+        color: #dc3545;
+        font-weight: 600;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="success-icon">✓</div>
+
+      <h1>Payment Successful!</h1>
+      <p class="subtitle">
+        Your membership payment has been processed successfully
+      </p>
+
+      <div class="details">
+        <div class="detail-row">
+          <span class="label">Transaction Status:</span>
+          <span class="value status-active">Completed</span>
+        </div>
+        <div class="detail-row">
+          <span class="label">Payment Date:</span>
+          <span class="value" id="payment-date"></span>
+        </div>
+        <div class="detail-row">
+          <span class="label">Session ID:</span>
+          <span class="value" id="session-id">Loading...</span>
+        </div>
+      </div>
+
+      <div class="buttons">
+        <button class="btn btn-primary" onclick="checkActiveMemberships()">
+          View Active Memberships
+        </button>
+        <button class="btn btn-secondary" onclick="checkPastMemberships()">
+          View Past Memberships
+        </button>
+        <a href="/dashboard" class="btn btn-success"> Go to Dashboard </a>
+      </div>
+
+      <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <span>Loading memberships...</span>
+      </div>
+
+      <div class="membership-results" id="membership-results">
+        <h3 id="results-title"></h3>
+        <div id="results-content"></div>
+      </div>
+    </div>
+
+    <script>
+      // Get URL parameters
+      const urlParams = new URLSearchParams(window.location.search);
+      const sessionId = urlParams.get("session_id");
+      const paymentStatus = urlParams.get("payment");
+
+      // Set payment date to current time
+      document.getElementById("payment-date").textContent =
+        new Date().toLocaleString();
+
+      // Set session ID if available
+      if (sessionId) {
+        document.getElementById("session-id").textContent = sessionId;
+      } else {
+        document.getElementById("session-id").textContent = "N/A";
+      }
+
+      // Get access token from localStorage (you might store it differently)
+      function getAccessToken() {
+        return (
+          localStorage.getItem("access_token") ||
+          sessionStorage.getItem("access_token") ||
+          prompt("Please enter your access token for API calls:")
+        );
+      }
+
+      // Show loading state
+      function showLoading() {
+        document.getElementById("loading").style.display = "block";
+        document.getElementById("membership-results").style.display = "none";
+      }
+
+      // Hide loading state
+      function hideLoading() {
+        document.getElementById("loading").style.display = "none";
+      }
+
+      // Display membership results
+      function displayResults(title, memberships, isActive = true) {
+        hideLoading();
+
+        const resultsDiv = document.getElementById("membership-results");
+        const titleDiv = document.getElementById("results-title");
+        const contentDiv = document.getElementById("results-content");
+
+        titleDiv.textContent = title;
+
+        if (memberships.length === 0) {
+          contentDiv.innerHTML =
+            '<p style="text-align: center; color: #666; padding: 20px;">No memberships found</p>';
+        } else {
+          contentDiv.innerHTML = memberships
+            .map((membership) => {
+              if (isActive) {
+                return `
+                            <div class="membership-card">
+                                <div class="club-name">${
+                                  membership.club_name
+                                }</div>
+                                <div class="club-details">
+                                    Captain: ${membership.captain_name}<br>
+                                    Type: ${membership.membership_type}<br>
+                                    Price: $${membership.price}/month<br>
+                                    Status: <span class="status-${membership.status.toLowerCase()}">${
+                  membership.status
+                }</span><br>
+                                    ${
+                                      membership.next_renewal_date
+                                        ? `Next Renewal: ${new Date(
+                                            membership.next_renewal_date
+                                          ).toLocaleDateString()}`
+                                        : ""
+                                    }
+                                </div>
+                            </div>
+                        `;
+              } else {
+                return `
+                            <div class="membership-card">
+                                <div class="club-name">${
+                                  membership.club_name
+                                }</div>
+                                <div class="club-details">
+                                    Captain: ${membership.captain_name}<br>
+                                    Type: ${membership.membership_type}<br>
+                                    Price: ${membership.price}<br>
+                                    Status: <span class="status-${membership.status.toLowerCase()}">${
+                  membership.status
+                }</span><br>
+                                    Period: ${new Date(
+                                      membership.start_date
+                                    ).toLocaleDateString()} - ${new Date(
+                  membership.end_date
+                ).toLocaleDateString()}
+                                </div>
+                            </div>
+                        `;
+              }
+            })
+            .join("");
+        }
+
+        resultsDiv.style.display = "block";
+      }
+
+      // Check active memberships
+      async function checkActiveMemberships() {
+        const token = getAccessToken();
+        if (!token) return;
+
+        showLoading();
+
+        try {
+          const response = await fetch("/api/user/active-memberships", {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            displayResults(
+              `Active Memberships (${data.total_memberships})`,
+              data.active_memberships,
+              true
+            );
+          } else {
+            throw new Error(`API Error: ${response.status}`);
+          }
+        } catch (error) {
+          hideLoading();
+          alert(`Failed to load active memberships: ${error.message}`);
+        }
+      }
+
+      // Check past memberships
+      async function checkPastMemberships() {
+        const token = getAccessToken();
+        if (!token) return;
+
+        showLoading();
+
+        try {
+          const response = await fetch("/api/user/past-memberships", {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            displayResults(
+              `Past Memberships (${data.total_past_memberships})`,
+              data.past_memberships,
+              false
+            );
+          } else {
+            throw new Error(`API Error: ${response.status}`);
+          }
+        } catch (error) {
+          hideLoading();
+          alert(`Failed to load past memberships: ${error.message}`);
+        }
+      }
+
+      // Auto-load active memberships after a short delay to show the new membership
+      setTimeout(() => {
+        console.log(
+          "Auto-loading active memberships to show new membership..."
+        );
+        checkActiveMemberships();
+      }, 2000);
+    </script>
+  </body>
+</html>

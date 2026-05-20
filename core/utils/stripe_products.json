@@ -1,0 +1,22 @@
+{
+    "member": {
+        "product_id": "prod_TUbkEVrPfHyMmM",
+        "price_id": "price_1SXcXMFFwH7OigzC4tM4RvnY",
+        "amount": 19.95,
+        "type": "one_time"
+    },
+    "captain": {
+        "product_id": "prod_TUbk3prnzSnGvs",
+        "price_id": "price_1SXcXNFFwH7OigzCkJ1fUv0m",
+        "amount": 99.0,
+        "type": "recurring",
+        "interval": "month"
+    },
+    "moderator": {
+        "product_id": "prod_TUbkdbiOUgKCM4",
+        "price_id": "price_1SXcXPFFwH7OigzCebVE9S16",
+        "amount": 9.95,
+        "type": "recurring",
+        "interval": "month"
+    }
+}
